@@ -16,18 +16,25 @@ const steps = [
   "Get Evaluated and Ranked"
 ];
 
+const testimonials = [
+  ["Organizer", "Managing events became incredibly easy."],
+  ["Participant", "AI team matching helped me find amazing teammates."],
+  ["Judge", "Evaluation became much faster."],
+  ["Mentor", "Mentoring workflow feels organized."]
+];
+
 export function LandingPage() {
   return (
-    <div className="marketing-page">
-      <section className="hero-section">
-        <div>
+    <div className="marketing-page landing-page">
+      <section className="hero-section landing-hero">
+        <div className="landing-hero-content">
           <p className="eyebrow">Premium AI Hackathon Platform</p>
           <h1>AI-Powered Hackathon Management Platform</h1>
           <p>
             Build, manage, join, and evaluate hackathons with AI-driven team matching, project
             evaluation, analytics, and collaboration tools.
           </p>
-          <div className="row-actions">
+          <div className="row-actions hero-cta">
             <Link to="/dashboard/organizer" className="btn">
               Start Hosting
             </Link>
@@ -55,15 +62,23 @@ export function LandingPage() {
             </article>
           </div>
         </div>
-        <div className="hero-visual">
-          <div className="floating-card">AI Analytics: Engagement +18%</div>
-          <div className="floating-card">Team Match Score: 94</div>
-          <div className="floating-card">Live Notifications: 12 new</div>
-          <div className="floating-card">Active Events: 28</div>
+        <div className="hero-visual landing-hero-visual">
+          <div className="dashboard-mockup">
+            <div className="mockup-header">
+              <span>HackHub AI Dashboard</span>
+              <span>Live</span>
+            </div>
+            <div className="mockup-grid">
+              <article className="floating-card">AI Analytics: Engagement +18%</article>
+              <article className="floating-card">Team Match Score: 94</article>
+              <article className="floating-card">Live Notifications: 12 new</article>
+              <article className="floating-card">Active Events: 28</article>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="card">
+      <section className="card trusted-section">
         <h3>Trusted by organizers, innovators, and developers worldwide</h3>
         <div className="logo-strip">
           <span>University Alliance</span>
@@ -75,7 +90,10 @@ export function LandingPage() {
       </section>
 
       <section className="card">
-        <h2>Core Features</h2>
+        <div className="section-header">
+          <h2>Core Features</h2>
+          <p>Built on the key differentiators from the HackHub product specification.</p>
+        </div>
         <div className="feature-grid">
           {features.map(([title, text]) => (
             <article className="feature-card" key={title}>
@@ -87,7 +105,10 @@ export function LandingPage() {
       </section>
 
       <section className="card">
-        <h2>How It Works</h2>
+        <div className="section-header">
+          <h2>How It Works</h2>
+          <p>From registration to ranking, everything is connected in one smooth workflow.</p>
+        </div>
         <div className="steps-row">
           {steps.map((step, idx) => (
             <article key={step} className="step-card">
@@ -99,7 +120,10 @@ export function LandingPage() {
       </section>
 
       <section className="card">
-        <h2>AI Showcase</h2>
+        <div className="section-header">
+          <h2>AI Showcase</h2>
+          <p>Interactive AI widgets across matching, evaluation, and event analytics.</p>
+        </div>
         <div className="feature-grid">
           <article className="feature-card"><h4>AI Team Recommendations</h4><p>Skill vectors, compatibility scores, role balance.</p></article>
           <article className="feature-card"><h4>Project Insights</h4><p>Innovation, docs quality, complexity summaries.</p></article>
@@ -109,7 +133,10 @@ export function LandingPage() {
       </section>
 
       <section className="card">
-        <h2>Community Highlights</h2>
+        <div className="section-header">
+          <h2>Community Highlights</h2>
+          <p>Top contributors, active teams, and ongoing innovation from across the platform.</p>
+        </div>
         <div className="feature-grid">
           <article className="feature-card"><h4>Top Participants</h4><p>Achievement badges, streaks, impact score.</p></article>
           <article className="feature-card"><h4>Active Teams</h4><p>Live team activity and submission velocity.</p></article>
@@ -119,17 +146,25 @@ export function LandingPage() {
       </section>
 
       <section className="card">
-        <h2>Testimonials</h2>
+        <div className="section-header">
+          <h2>Testimonials</h2>
+          <p>Feedback from every role in the ecosystem.</p>
+        </div>
         <div className="feature-grid">
-          <article className="feature-card"><h4>Organizer</h4><p>"Managing events became incredibly easy."</p></article>
-          <article className="feature-card"><h4>Participant</h4><p>"AI team matching helped me find amazing teammates."</p></article>
-          <article className="feature-card"><h4>Judge</h4><p>"Evaluation became much faster."</p></article>
-          <article className="feature-card"><h4>Mentor</h4><p>"Mentoring workflow feels organized."</p></article>
+          {testimonials.map(([role, quote]) => (
+            <article className="feature-card testimonial-card" key={role}>
+              <h4>{role}</h4>
+              <p>"{quote}"</p>
+            </article>
+          ))}
         </div>
       </section>
 
       <section className="card">
-        <h2>Leaderboard + Analytics Preview</h2>
+        <div className="section-header">
+          <h2>Leaderboard + Analytics Preview</h2>
+          <p>Gamified rankings and data-rich dashboards designed for rapid decision making.</p>
+        </div>
         <div className="feature-grid">
           <article className="feature-card"><h4>Top Projects</h4><p>Rank cards, badges, and winning indicators.</p></article>
           <article className="feature-card"><h4>Registration Funnel</h4><p>Registration to submission conversion preview.</p></article>

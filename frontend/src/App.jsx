@@ -1,26 +1,50 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import { AppHeader } from "./components/layout/AppHeader";
-import { AppNav } from "./components/layout/AppNav";
+import { SiteFooter } from "./components/layout/SiteFooter";
+import { SiteHeader } from "./components/layout/SiteHeader";
 import { RoleRoute } from "./components/routing/RoleRoute";
 import { AppProvider, useApp } from "./context/AppContext";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
-import { AuthPage } from "./pages/AuthPage";
+import { AboutPage } from "./pages/AboutPage";
 import { CertificatesPage } from "./pages/CertificatesPage";
+import { CommunityPage } from "./pages/CommunityPage";
+import { ContactPage } from "./pages/ContactPage";
+import { ExploreHackathonsPage } from "./pages/ExploreHackathonsPage";
+import { FeaturesPage } from "./pages/FeaturesPage";
 import { HackathonsPage } from "./pages/HackathonsPage";
-import { HomePage } from "./pages/HomePage";
+import { HowItWorksPage } from "./pages/HowItWorksPage";
 import { JudgingPage } from "./pages/JudgingPage";
+import { LandingPage } from "./pages/LandingPage";
+import { LoginPage } from "./pages/LoginPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
+import { PricingPage } from "./pages/PricingPage";
+import { RegisterPage } from "./pages/RegisterPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { SubmissionFlowPage } from "./pages/SubmissionFlowPage";
 import { SubmissionsPage } from "./pages/SubmissionsPage";
 import { TeamsPage } from "./pages/TeamsPage";
+import { AdminDashboardPage } from "./pages/dashboard/AdminDashboardPage";
+import { JudgeDashboardPage } from "./pages/dashboard/JudgeDashboardPage";
+import { MentorDashboardPage } from "./pages/dashboard/MentorDashboardPage";
+import { OrganizerDashboardPage } from "./pages/dashboard/OrganizerDashboardPage";
+import { ParticipantDashboardPage } from "./pages/dashboard/ParticipantDashboardPage";
 
 function AppRoutes() {
   const { user } = useApp();
 
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/explore" element={<ExploreHackathonsPage />} />
+      <Route path="/features" element={<FeaturesPage />} />
+      <Route path="/how-it-works" element={<HowItWorksPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/community" element={<CommunityPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<RegisterPage />} />
+
       <Route path="/hackathons" element={<HackathonsPage />} />
       <Route
         path="/teams"
@@ -30,7 +54,7 @@ function AppRoutes() {
               <TeamsPage />
             </RoleRoute>
           ) : (
-            <Navigate to="/auth" replace />
+            <Navigate to="/login" replace />
           )
         }
       />
@@ -42,7 +66,7 @@ function AppRoutes() {
               <SubmissionsPage />
             </RoleRoute>
           ) : (
-            <Navigate to="/auth" replace />
+            <Navigate to="/login" replace />
           )
         }
       />
@@ -54,27 +78,104 @@ function AppRoutes() {
               <JudgingPage />
             </RoleRoute>
           ) : (
-            <Navigate to="/auth" replace />
+            <Navigate to="/login" replace />
           )
         }
       />
       <Route
         path="/notifications"
-        element={user ? <NotificationsPage /> : <Navigate to="/auth" replace />}
+        element={user ? <NotificationsPage /> : <Navigate to="/login" replace />}
       />
       <Route
         path="/certificates"
-        element={user ? <CertificatesPage /> : <Navigate to="/auth" replace />}
+        element={user ? <CertificatesPage /> : <Navigate to="/login" replace />}
       />
       <Route
         path="/analytics"
         element={
           user ? (
-            <RoleRoute allowRoles={["organizer", "judge", "mentor"]}>
+            <RoleRoute allowRoles={["organizer", "judge", "mentor", "participant"]}>
               <AnalyticsPage />
             </RoleRoute>
           ) : (
-            <Navigate to="/auth" replace />
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/submission-flow"
+        element={
+          user ? (
+            <RoleRoute allowRoles={["participant", "organizer"]}>
+              <SubmissionFlowPage />
+            </RoleRoute>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/settings"
+        element={user ? <SettingsPage /> : <Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/dashboard/admin"
+        element={
+          user ? (
+            <RoleRoute allowRoles={["admin"]}>
+              <AdminDashboardPage />
+            </RoleRoute>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/dashboard/organizer"
+        element={
+          user ? (
+            <RoleRoute allowRoles={["organizer"]}>
+              <OrganizerDashboardPage />
+            </RoleRoute>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/dashboard/participant"
+        element={
+          user ? (
+            <RoleRoute allowRoles={["participant"]}>
+              <ParticipantDashboardPage />
+            </RoleRoute>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/dashboard/judge"
+        element={
+          user ? (
+            <RoleRoute allowRoles={["judge"]}>
+              <JudgeDashboardPage />
+            </RoleRoute>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/dashboard/mentor"
+        element={
+          user ? (
+            <RoleRoute allowRoles={["mentor"]}>
+              <MentorDashboardPage />
+            </RoleRoute>
+          ) : (
+            <Navigate to="/login" replace />
           )
         }
       />
@@ -88,13 +189,13 @@ function AppLayout() {
 
   return (
     <div className="app-shell">
-      <AppHeader />
-      <AppNav />
+      <SiteHeader />
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
       <main className="page-main">
         <AppRoutes />
       </main>
+      <SiteFooter />
     </div>
   );
 }

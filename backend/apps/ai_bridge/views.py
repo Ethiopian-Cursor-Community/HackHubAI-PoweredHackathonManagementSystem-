@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from apps.hackathons.models import HackathonParticipant
 from apps.submissions.models import Submission
 
-from .services import evaluate_submission, similarity_check, team_match
+from .services import cursor_agent_prompt, evaluate_submission, similarity_check, team_match
 
 
 class AIEvaluateSubmissionView(APIView):
@@ -69,3 +69,30 @@ class AISimilarityCheckView(APIView):
         if err:
             return Response({"detail": "ai service unavailable", "error": err}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response({"pairs": result})
+
+
+class CursorAgentPromptView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role not in ("admin", "organizer", "judge", "mentor"):
+            return Response(
+                {"detail": "insufficient permissions for agent sdk prompt"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        prompt = request.data.get("prompt")
+        cwd = request.data.get("cwd")
+        if not prompt:
+            return Response({"detail": "prompt is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        payload = {"prompt": prompt}
+        if cwd:
+            payload["cwd"] = cwd
+
+        result, err = cursor_agent_prompt(payload)
+        if err:
+            return Response(
+                {"detail": "agent sdk service unavailable", "error": err},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response(result)

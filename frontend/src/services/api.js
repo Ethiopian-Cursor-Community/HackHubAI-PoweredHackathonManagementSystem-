@@ -6,3 +6,4 @@ export * from "./judgingApi";
 export * from "./notificationsApi";
 export * from "./certificatesApi";
 export * from "./analyticsApi";
+export * from "./aiApi";
