@@ -1,9 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
-
-export async function getHealth() {
-  const response = await fetch(`${API_BASE_URL}/health/`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch backend health");
-  }
-  return response.json();
-}
+export * from "./authApi";
+export * from "./hackathonsApi";
+export * from "./teamsApi";
+export * from "./submissionsApi";
+export * from "./judgingApi";
+export * from "./notificationsApi";
+export * from "./certificatesApi";
+export * from "./analyticsApi";

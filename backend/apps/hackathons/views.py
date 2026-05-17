@@ -2,8 +2,10 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.certificates.services import issue_certificate
 from apps.common.permissions import IsOrganizer, IsParticipant
 from apps.notifications.services import create_notification
+from apps.submissions.models import Submission
 
 from .models import Hackathon, HackathonJudge, HackathonParticipant
 from .serializers import HackathonJudgeSerializer, HackathonParticipantSerializer, HackathonSerializer
@@ -16,7 +18,17 @@ class HackathonViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
             return [permissions.AllowAny()]
-        if self.action in ("create", "update", "partial_update", "destroy", "publish", "announce", "assign_judge", "remove_judge"):
+        if self.action in (
+            "create",
+            "update",
+            "partial_update",
+            "destroy",
+            "publish",
+            "announce",
+            "assign_judge",
+            "remove_judge",
+            "publish_results",
+        ):
             return [IsOrganizer()]
         if self.action == "register":
             return [IsParticipant()]
@@ -114,3 +126,46 @@ class HackathonViewSet(viewsets.ModelViewSet):
         if not deleted:
             return Response({"detail": "assignment not found"}, status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="results/publish")
+    def publish_results(self, request, pk=None):
+        hackathon = self.get_object()
+        if not self._is_owner_or_admin(hackathon):
+            return Response({"detail": "only organizer can publish results"}, status=status.HTTP_403_FORBIDDEN)
+
+        ranked_submissions = list(
+            Submission.objects.filter(team__hackathon=hackathon)
+            .select_related("team")
+            .order_by("-final_score", "created_at")
+        )
+
+        for index, submission in enumerate(ranked_submissions, start=1):
+            submission.rank = index
+            submission.save(update_fields=["rank", "updated_at"])
+            submission.team.rank = index
+            submission.team.final_score = submission.final_score
+            submission.team.status = "submitted"
+            submission.team.save(update_fields=["rank", "final_score", "status", "updated_at"])
+
+        participants = HackathonParticipant.objects.filter(
+            hackathon=hackathon, status=HackathonParticipant.STATUS_REGISTERED
+        ).values_list("user_id", flat=True)
+        for user_id in participants:
+            cert = issue_certificate(user_id=user_id, hackathon_id=hackathon.id, metadata={"source": "results_publish"})
+            create_notification(
+                user_id=user_id,
+                event_type="results:published",
+                title=f"Results published for {hackathon.title}",
+                body="Leaderboard and certificate are now available.",
+                metadata={"hackathon_id": hackathon.id, "certificate_id": cert.id},
+            )
+
+        hackathon.status = Hackathon.STATUS_COMPLETED
+        hackathon.save(update_fields=["status", "updated_at"])
+        return Response(
+            {
+                "detail": "results published",
+                "hackathon_id": hackathon.id,
+                "ranked_submissions": len(ranked_submissions),
+            }
+        )
