@@ -21,7 +21,11 @@ INSTALLED_APPS = [
     "apps.hackathons",
     "apps.teams",
     "apps.submissions",
+    "apps.judging",
     "apps.notifications",
+    "apps.certificates",
+    "apps.analytics",
+    "apps.ai_bridge",
 ]
 
 MIDDLEWARE = [
