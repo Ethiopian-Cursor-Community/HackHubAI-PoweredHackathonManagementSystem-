@@ -1,53 +1,36 @@
-import { useEffect, useState } from "react";
-
-import { listCertificates, verifyCertificate } from "../services/api";
-import { useApp } from "../context/AppContext";
+import { useQuery } from "@tanstack/react-query";
+import { request } from "../services/http";
+import { Link } from "react-router-dom";
 
 export function CertificatesPage() {
-  const { run } = useApp();
-  const [certificates, setCertificates] = useState([]);
-  const [verificationId, setVerificationId] = useState("");
-  const [result, setResult] = useState(null);
-
-  const load = async () => {
-    const data = await listCertificates();
-    setCertificates(data);
-  };
-
-  useEffect(() => {
-    load();
-  }, []);
+  const { data: certificates, isLoading } = useQuery({
+    queryKey: ["certificates"],
+    queryFn: () => request("/certificates/"),
+  });
 
   return (
-    <section className="card">
-      <h2>Certificates</h2>
-      <div className="list">
-        {certificates.map((c) => (
-          <article key={c.id} className="list-item">
-            <div>
-              <strong>Hackathon #{c.hackathon}</strong>
-              <p>Verification ID: {c.verification_id}</p>
+    <div>
+      <h1 className="text-2xl font-bold mb-4">🏅 Certificates</h1>
+      {isLoading ? <p>Loading certificates...</p> : (
+        <div className="space-y-3">
+          {certificates?.length === 0 && <p className="text-[var(--muted)]">No certificates yet. Participate in hackathons to earn them!</p>}
+          {certificates?.map((cert) => (
+            <div key={cert.id} className="card">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-bold m-0">Certificate #{cert.id}</h3>
+                  <p className="text-sm text-[var(--muted)]">Verification ID:</p>
+                  <code className="text-xs break-all">{cert.verification_id}</code>
+                  <p className="text-xs text-[var(--muted)] mt-1">Issued: {new Date(cert.created_at).toLocaleDateString()}</p>
+                </div>
+                <Link to={`/certificates/verify/${cert.verification_id}`} className="btn btn-ghost text-sm">
+                  Verify
+                </Link>
+              </div>
             </div>
-          </article>
-        ))}
-      </div>
-
-      <div className="form-grid">
-        <h3>Verify Certificate</h3>
-        <input
-          value={verificationId}
-          onChange={(e) => setVerificationId(e.target.value)}
-          placeholder="Enter verification id"
-        />
-        <button
-          className="btn"
-          onClick={() => run(async () => setResult(await verifyCertificate(verificationId)))}
-          disabled={!verificationId}
-        >
-          Verify
-        </button>
-        {result && <pre className="json-preview">{JSON.stringify(result, null, 2)}</pre>}
-      </div>
-    </section>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

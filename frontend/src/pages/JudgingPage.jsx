@@ -1,148 +1,91 @@
-import { useEffect, useState } from "react";
-
-import {
-  createScore,
-  finalizeScore,
-  getLeaderboard,
-  listHackathons,
-  listScores,
-  listSubmissions
-} from "../services/api";
-import { useApp } from "../context/AppContext";
+import { useQuery } from "@tanstack/react-query";
+import { useAuthStore } from "../store/authStore";
+import { useState } from "react";
+import { request } from "../services/http";
+import toast from "react-hot-toast";
 
 export function JudgingPage() {
-  const { isJudge, run, loading } = useApp();
-  const [scores, setScores] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
-  const [hackathons, setHackathons] = useState([]);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [selectedHackathon, setSelectedHackathon] = useState("");
-  const [payload, setPayload] = useState({
-    submission: "",
-    criteria_scores: [],
-    total_score: 0,
-    feedback: ""
+  const user = useAuthStore((s) => s.user);
+  const [submissionId, setSubmissionId] = useState("");
+  const [scores, setScores] = useState({ criteria_scores: [], total_score: 0, feedback: "" });
+
+  const { data: scoresList, isLoading, refetch } = useQuery({
+    queryKey: ["judging"],
+    queryFn: () => request("/judging/"),
+    enabled: user?.role === "judge" || user?.role === "admin",
   });
 
-  const load = async () => {
-    const [scoreData, submissionData, hackathonData] = await Promise.all([
-      listScores(),
-      listSubmissions(),
-      listHackathons()
-    ]);
-    setScores(scoreData);
-    setSubmissions(submissionData);
-    setHackathons(hackathonData);
+  const handleScoreSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await request("/judging/", {
+        method: "POST",
+        body: JSON.stringify({ submission: submissionId, ...scores }),
+      });
+      toast.success("Score submitted");
+      setScores({ criteria_scores: [], total_score: 0, feedback: "" });
+      refetch();
+    } catch (err) {
+      toast.error(err.message);
+    }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  if (!isJudge) {
-    return (
-      <section className="card">
-        <h2>Judging</h2>
-        <p>Only judges and admins can access this page.</p>
-      </section>
-    );
-  }
+  const handleFinalize = async (scoreId) => {
+    try {
+      await request(`/judging/${scoreId}/finalize/`, { method: "POST" });
+      toast.success("Score finalized");
+      refetch();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
 
   return (
-    <section className="card">
-      <h2>Judging</h2>
-      <div className="list">
-        {scores.map((score) => (
-          <article key={score.id} className="list-item">
-            <div>
-              <strong>Submission #{score.submission}</strong>
-              <p>Total: {score.total_score} • finalized: {String(score.is_finalized)}</p>
-            </div>
-            <button
-              className="btn btn-ghost"
-              onClick={() =>
-                run(async () => {
-                  await finalizeScore(score.id);
-                  await load();
-                }, "Score finalized")
-              }
-            >
-              Finalize
-            </button>
-          </article>
-        ))}
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Judging Panel</h1>
+
+      <div className="card mb-4">
+        <h3 className="font-bold mb-3">Submit Score</h3>
+        <form onSubmit={handleScoreSubmit} className="space-y-3">
+          <div>
+            <label className="block text-sm">Submission ID</label>
+            <input value={submissionId} onChange={(e) => setSubmissionId(e.target.value)} required placeholder="Enter submission ID" />
+          </div>
+          <div>
+            <label className="block text-sm">Total Score (0-100)</label>
+            <input type="number" value={scores.total_score} onChange={(e) => setScores({ ...scores, total_score: Number(e.target.value) })} min={0} max={100} required />
+          </div>
+          <div>
+            <label className="block text-sm">Feedback</label>
+            <textarea rows={3} value={scores.feedback} onChange={(e) => setScores({ ...scores, feedback: e.target.value })} />
+          </div>
+          <button type="submit" className="btn">Submit Score</button>
+        </form>
       </div>
 
-      <form
-        className="form-grid"
-        onSubmit={(e) => {
-          e.preventDefault();
-          run(async () => {
-            await createScore(payload);
-            setPayload({ submission: "", criteria_scores: [], total_score: 0, feedback: "" });
-            await load();
-          }, "Score saved");
-        }}
-      >
-        <h3>Add Score</h3>
-        <select
-          value={payload.submission}
-          onChange={(e) => setPayload((s) => ({ ...s, submission: e.target.value }))}
-          required
-        >
-          <option value="">Select submission</option>
-          {submissions.map((sub) => (
-            <option key={sub.id} value={sub.id}>
-              {sub.project_title}
-            </option>
-          ))}
-        </select>
-        <input
-          type="number"
-          min={0}
-          max={100}
-          value={payload.total_score}
-          onChange={(e) => setPayload((s) => ({ ...s, total_score: Number(e.target.value) }))}
-          required
-        />
-        <textarea
-          placeholder="Feedback"
-          value={payload.feedback}
-          onChange={(e) => setPayload((s) => ({ ...s, feedback: e.target.value }))}
-        />
-        <button className="btn" type="submit" disabled={loading}>
-          Save Score
-        </button>
-      </form>
-
-      <div className="form-grid">
-        <h3>Leaderboard</h3>
-        <select value={selectedHackathon} onChange={(e) => setSelectedHackathon(e.target.value)}>
-          <option value="">Select hackathon</option>
-          {hackathons.map((h) => (
-            <option key={h.id} value={h.id}>
-              {h.title}
-            </option>
-          ))}
-        </select>
-        <button
-          className="btn"
-          onClick={() => run(async () => setLeaderboard(await getLeaderboard(selectedHackathon)))}
-          disabled={!selectedHackathon}
-        >
-          Load Leaderboard
-        </button>
-        <div className="list">
-          {leaderboard.map((row) => (
-            <article key={row.id} className="list-item">
-              <strong>{row.project_title}</strong>
-              <p>
-                {row.team__name} • {row.final_score}
-              </p>
-            </article>
+      <h2 className="text-xl font-bold mb-2">Existing Scores</h2>
+      {isLoading ? <p>Loading scores...</p> : (
+        <div className="space-y-3">
+          {scoresList?.length === 0 && <p className="text-[var(--muted)]">No scores yet.</p>}
+          {scoresList?.map((score) => (
+            <div key={score.id} className="card">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p><strong>Submission:</strong> {score.submission}</p>
+                  <p><strong>Score:</strong> {score.total_score}</p>
+                  <p><strong>Feedback:</strong> {score.feedback}</p>
+                  <p className="text-xs text-[var(--muted)]">
+                    Judge: {score.judge} · {score.is_finalized ? "✅ Finalized" : "📝 Draft"}
+                  </p>
+                </div>
+                {!score.is_finalized && score.judge === user?.id && (
+                  <button className="btn text-sm" onClick={() => handleFinalize(score.id)}>Finalize</button>
+                )}
+              </div>
+            </div>
           ))}
         </div>
-      </div>
-    </section>
+      )}
+    </div>
   );
 }
