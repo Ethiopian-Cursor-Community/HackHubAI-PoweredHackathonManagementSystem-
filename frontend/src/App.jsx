@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/authStore";
 import { useSocket } from "./hooks/useSocket";
 import { ThemeToggle } from "./components/layout/ThemeToggle";
+import { getDashboardRoute } from "./lib/dashboardRoutes";
+import { DashboardShell } from "./components/dashboard/DashboardShell";
 
 // Pages
 import { LandingPage } from "./pages/LandingPage";
@@ -30,12 +32,19 @@ function ProtectedRoute({ children, allowedRoles }) {
   const { user, accessToken } = useAuthStore();
   if (!accessToken || !user) return <Navigate to="/login" replace />;
   if (allowedRoles && !allowedRoles.includes(user.role) && user.role !== "admin")
-    return <Navigate to="/" replace />;
+    return <Navigate to={getDashboardRoute(user)} replace />;
+  return children;
+}
+
+function AlreadyAuthenticated({ children }) {
+  const { user, accessToken } = useAuthStore();
+  if (accessToken && user) {
+    return <Navigate to={getDashboardRoute(user)} replace />;
+  }
   return children;
 }
 
 function AppLayout({ children }) {
-  useSocket();
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md">
@@ -69,43 +78,58 @@ function AppLayout({ children }) {
   );
 }
 
-export default function App() {
-  const { accessToken } = useAuthStore();
+function DynamicLayout({ children, title }) {
+  const { user } = useAuthStore();
+  if (user) {
+    return <DashboardShell title={title}>{children}</DashboardShell>;
+  }
+  return <AppLayout>{children}</AppLayout>;
+}
 
+export default function App() {
+  useSocket();
   return (
     <div className="app-shell" style={{ background: "var(--bg)", color: "var(--text)" }}>
       <Routes>
+        {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={accessToken ? <Navigate to="/hackathons" /> : <LoginPage />} />
-        <Route path="/register" element={accessToken ? <Navigate to="/hackathons" /> : <RegisterPage />} />
-        <Route path="/signup" element={accessToken ? <Navigate to="/hackathons" /> : <RegisterPage />} />
-        <Route path="/explore" element={<AppLayout><ExploreHackathonsPage /></AppLayout>} />
-
-        {/* Public pages */}
+        <Route path="/login" element={<AlreadyAuthenticated><LoginPage /></AlreadyAuthenticated>} />
+        <Route path="/register" element={<AlreadyAuthenticated><RegisterPage /></AlreadyAuthenticated>} />
+        <Route path="/signup" element={<AlreadyAuthenticated><RegisterPage /></AlreadyAuthenticated>} />
+        <Route path="/explore" element={<DynamicLayout title="Explore"><ExploreHackathonsPage /></DynamicLayout>} />
         <Route path="/certificates/verify/:verificationId" element={<VerifyCertificatePage />} />
         <Route path="/leaderboard/:hackathonId" element={<LeaderboardPage />} />
 
-        {/* Protected routes */}
-        <Route path="/hackathons" element={<AppLayout><HackathonsPage /></AppLayout>} />
-        <Route path="/teams" element={<AppLayout><ProtectedRoute allowedRoles={["participant", "organizer", "judge", "mentor"]}><TeamsPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/submissions" element={<AppLayout><ProtectedRoute allowedRoles={["participant", "organizer", "judge"]}><SubmissionsPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/submission-flow" element={<AppLayout><ProtectedRoute allowedRoles={["participant", "organizer"]}><SubmissionFlowPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/judging" element={<AppLayout><ProtectedRoute allowedRoles={["judge", "organizer"]}><JudgingPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/notifications" element={<AppLayout><ProtectedRoute><NotificationsPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/certificates" element={<AppLayout><ProtectedRoute><CertificatesPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/analytics" element={<AppLayout><ProtectedRoute><AnalyticsPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/settings" element={<AppLayout><ProtectedRoute><SettingsPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/profile/:userId" element={<AppLayout><ProtectedRoute><ProfilePage /></ProtectedRoute></AppLayout>} />
+        {/* Role-Specific Dashboards */}
+        <Route path="/dashboard" element={<DashboardRedirect />} />
+        <Route path="/dashboard/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminDashboardPage /></ProtectedRoute>} />
+        <Route path="/dashboard/organizer" element={<ProtectedRoute allowedRoles={["organizer"]}><OrganizerDashboardPage /></ProtectedRoute>} />
+        <Route path="/dashboard/participant" element={<ProtectedRoute allowedRoles={["participant"]}><ParticipantDashboardPage /></ProtectedRoute>} />
+        <Route path="/dashboard/judge" element={<ProtectedRoute allowedRoles={["judge"]}><JudgeDashboardPage /></ProtectedRoute>} />
+        <Route path="/dashboard/mentor" element={<ProtectedRoute allowedRoles={["mentor"]}><MentorDashboardPage /></ProtectedRoute>} />
 
-        {/* Dashboards */}
-        <Route path="/dashboard/admin" element={<AppLayout><ProtectedRoute allowedRoles={["admin"]}><AdminDashboardPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/dashboard/organizer" element={<AppLayout><ProtectedRoute allowedRoles={["organizer"]}><OrganizerDashboardPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/dashboard/participant" element={<AppLayout><ProtectedRoute allowedRoles={["participant"]}><ParticipantDashboardPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/dashboard/judge" element={<AppLayout><ProtectedRoute allowedRoles={["judge"]}><JudgeDashboardPage /></ProtectedRoute></AppLayout>} />
-        <Route path="/dashboard/mentor" element={<AppLayout><ProtectedRoute allowedRoles={["mentor"]}><MentorDashboardPage /></ProtectedRoute></AppLayout>} />
+        {/* Shared authenticated pages */}
+        <Route path="/hackathons" element={<DynamicLayout title="Hackathons"><HackathonsPage /></DynamicLayout>} />
+        <Route path="/teams" element={<DynamicLayout title="Teams"><ProtectedRoute allowedRoles={["participant", "organizer", "judge", "mentor"]}><TeamsPage /></ProtectedRoute></DynamicLayout>} />
+        <Route path="/submissions" element={<DynamicLayout title="Submissions"><ProtectedRoute allowedRoles={["participant", "organizer", "judge"]}><SubmissionsPage /></ProtectedRoute></DynamicLayout>} />
+        <Route path="/submission-flow" element={<DynamicLayout title="Submit Project"><ProtectedRoute allowedRoles={["participant", "organizer"]}><SubmissionFlowPage /></ProtectedRoute></DynamicLayout>} />
+        <Route path="/judging" element={<DynamicLayout title="Judging"><ProtectedRoute allowedRoles={["judge", "organizer"]}><JudgingPage /></ProtectedRoute></DynamicLayout>} />
+        <Route path="/notifications" element={<DynamicLayout title="Notifications"><ProtectedRoute><NotificationsPage /></ProtectedRoute></DynamicLayout>} />
+        <Route path="/certificates" element={<DynamicLayout title="Certificates"><ProtectedRoute><CertificatesPage /></ProtectedRoute></DynamicLayout>} />
+        <Route path="/analytics" element={<DynamicLayout title="Analytics"><ProtectedRoute><AnalyticsPage /></ProtectedRoute></DynamicLayout>} />
+        <Route path="/settings" element={<DynamicLayout title="Settings"><ProtectedRoute><SettingsPage /></ProtectedRoute></DynamicLayout>} />
+        <Route path="/profile/:userId" element={<DynamicLayout title="Profile"><ProtectedRoute><ProfilePage /></ProtectedRoute></DynamicLayout>} />
+        <Route path="/profile" element={<DynamicLayout title="Profile"><ProtectedRoute><ProfilePage /></ProtectedRoute></DynamicLayout>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );
+}
+
+/** Redirects /dashboard to the user's role-specific dashboard */
+function DashboardRedirect() {
+  const { user, accessToken } = useAuthStore();
+  if (!accessToken || !user) return <Navigate to="/login" replace />;
+  return <Navigate to={getDashboardRoute(user)} replace />;
 }

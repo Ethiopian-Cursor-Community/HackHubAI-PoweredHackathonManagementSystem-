@@ -17,6 +17,7 @@ export async function login({ email, password }) {
     method: "POST",
     body: JSON.stringify({ email, password }),
   }, false);
+  // Store tokens immediately so getMe can use them
   useAuthStore.getState().setTokens(data.access, data.refresh);
   return data;
 }
@@ -32,6 +33,9 @@ export async function logout() {
   clearAuth();
 }
 
-export function getMe() {
-  return request("/auth/me/");
+export async function getMe() {
+  const data = await request("/auth/me/");
+  // Update user in store
+  useAuthStore.getState().setUser(data);
+  return data;
 }
