@@ -19,6 +19,7 @@ services:
       - DB_PASSWORD=hackhub
       - DB_HOST=db
       - DB_PORT=5432
+      - AI_SERVICE_URL=http://ai:8000
     depends_on:
       - db
       - redis
