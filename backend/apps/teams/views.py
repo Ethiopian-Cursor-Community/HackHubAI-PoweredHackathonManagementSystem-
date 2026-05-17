@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.permissions import IsParticipant
+from apps.notifications.services import create_notification
 
 from .models import Team, TeamInvitation, TeamJoinRequest, TeamMembership
 from .serializers import TeamInvitationSerializer, TeamJoinRequestSerializer, TeamSerializer
@@ -19,6 +20,12 @@ class TeamViewSet(viewsets.ModelViewSet):
             return [IsParticipant()]
         return [permissions.IsAuthenticated()]
 
+    def get_queryset(self):
+        user = self.request.user
+        if user.role in ("admin", "organizer", "judge", "mentor"):
+            return self.queryset
+        return self.queryset.filter(memberships__user=user).distinct()
+
     @transaction.atomic
     def perform_create(self, serializer):
         team = serializer.save(leader=self.request.user)
@@ -31,7 +38,14 @@ class TeamViewSet(viewsets.ModelViewSet):
             return Response({"detail": "only team leader can invite"}, status=status.HTTP_403_FORBIDDEN)
         serializer = TeamInvitationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(team=team, invited_by=request.user)
+        invitation = serializer.save(team=team, invited_by=request.user)
+        create_notification(
+            user_id=invitation.invited_user_id,
+            event_type="team:invite",
+            title=f"Team invite to {team.name}",
+            body=f"{request.user.username} invited you to join {team.name}.",
+            metadata={"team_id": team.id, "invitation_id": invitation.id},
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="request")
@@ -42,6 +56,13 @@ class TeamViewSet(viewsets.ModelViewSet):
             return Response({"detail": "request already pending"}, status=status.HTTP_400_BAD_REQUEST)
         obj.status = TeamJoinRequest.STATUS_PENDING
         obj.save(update_fields=["status", "updated_at"])
+        create_notification(
+            user_id=team.leader_id,
+            event_type="team:join_request",
+            title=f"Join request for {team.name}",
+            body=f"{request.user.username} requested to join your team.",
+            metadata={"team_id": team.id, "request_id": obj.id},
+        )
         return Response(TeamJoinRequestSerializer(obj).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
     @action(detail=True, methods=["patch"], url_path=r"requests/(?P<request_id>[^/.]+)")
@@ -60,6 +81,13 @@ class TeamViewSet(viewsets.ModelViewSet):
         join_request.save(update_fields=["status", "updated_at"])
         if decision == "accepted":
             TeamMembership.objects.get_or_create(team=team, user=join_request.user, defaults={"role": TeamMembership.ROLE_MEMBER})
+        create_notification(
+            user_id=join_request.user_id,
+            event_type="team:request_resolved",
+            title=f"Join request {decision}",
+            body=f"Your join request to {team.name} was {decision}.",
+            metadata={"team_id": team.id, "request_id": join_request.id},
+        )
         return Response(TeamJoinRequestSerializer(join_request).data)
 
     @action(detail=False, methods=["patch"], url_path=r"invitations/(?P<invite_id>[^/.]+)")
@@ -68,13 +96,22 @@ class TeamViewSet(viewsets.ModelViewSet):
         decision = request.data.get("decision")
         if decision not in ("accepted", "rejected"):
             return Response({"detail": "decision must be accepted or rejected"}, status=status.HTTP_400_BAD_REQUEST)
-        invite = TeamInvitation.objects.filter(id=invite_id, invited_user=request.user).first()
+        invite = TeamInvitation.objects.filter(
+            id=invite_id, invited_user=request.user, status=TeamInvitation.STATUS_PENDING
+        ).first()
         if not invite:
             return Response({"detail": "invitation not found"}, status=status.HTTP_404_NOT_FOUND)
         invite.status = decision
         invite.save(update_fields=["status", "updated_at"])
         if decision == "accepted":
             TeamMembership.objects.get_or_create(team=invite.team, user=request.user, defaults={"role": TeamMembership.ROLE_MEMBER})
+        create_notification(
+            user_id=invite.invited_by_id,
+            event_type="team:invite_response",
+            title=f"Invitation {decision}",
+            body=f"{request.user.username} {decision} your invitation for {invite.team.name}.",
+            metadata={"team_id": invite.team_id, "invite_id": invite.id},
+        )
         return Response(TeamInvitationSerializer(invite).data)
 
     @action(detail=True, methods=["delete"], url_path=r"members/(?P<user_id>[^/.]+)")

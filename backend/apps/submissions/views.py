@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.common.permissions import IsParticipant
+from apps.notifications.services import create_notification
 from apps.teams.models import TeamMembership
 
 from .models import Submission
@@ -21,6 +22,12 @@ class SubmissionViewSet(viewsets.ModelViewSet):
 
     def _ensure_team_member(self, team):
         return TeamMembership.objects.filter(team=team, user=self.request.user).exists() or self.request.user.role == "admin"
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role in ("admin", "organizer", "judge", "mentor"):
+            return self.queryset
+        return self.queryset.filter(team__memberships__user=user).distinct()
 
     def create(self, request, *args, **kwargs):
         team_id = request.data.get("team")
@@ -54,4 +61,13 @@ class SubmissionViewSet(viewsets.ModelViewSet):
             return Response({"detail": "only team members can submit"}, status=status.HTTP_403_FORBIDDEN)
         submission.status = Submission.STATUS_SUBMITTED
         submission.save(update_fields=["status", "updated_at"])
+        hackathon = submission.team.hackathon
+        if hackathon.organizer_id:
+            create_notification(
+                user_id=hackathon.organizer_id,
+                event_type="submission:submitted",
+                title=f"Submission received for {hackathon.title}",
+                body=f"{submission.team.name} submitted {submission.project_title}.",
+                metadata={"submission_id": submission.id, "hackathon_id": hackathon.id},
+            )
         return Response(self.get_serializer(submission).data)

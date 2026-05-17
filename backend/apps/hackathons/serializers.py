@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Hackathon, HackathonParticipant
+from .models import Hackathon, HackathonJudge, HackathonParticipant
 
 
 class HackathonSerializer(serializers.ModelSerializer):
@@ -36,3 +36,12 @@ class HackathonParticipantSerializer(serializers.ModelSerializer):
         model = HackathonParticipant
         fields = ("id", "hackathon", "user", "status", "created_at")
         read_only_fields = ("user", "created_at")
+
+
+class HackathonJudgeSerializer(serializers.ModelSerializer):
+    judge_name = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = HackathonJudge
+        fields = ("id", "hackathon", "user", "judge_name", "created_at")
+        read_only_fields = ("created_at",)

@@ -67,3 +67,11 @@ class HackathonParticipant(TimeStampedModel):
 
     class Meta:
         unique_together = ("hackathon", "user")
+
+
+class HackathonJudge(TimeStampedModel):
+    hackathon = models.ForeignKey(Hackathon, on_delete=models.CASCADE, related_name="judges")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="judge_assignments")
+
+    class Meta:
+        unique_together = ("hackathon", "user")

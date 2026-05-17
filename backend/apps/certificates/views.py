@@ -1,9 +1,13 @@
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.hackathons.models import HackathonParticipant
+from apps.notifications.services import create_notification
+
 from .models import Certificate
 from .serializers import CertificateSerializer
+from .services import issue_certificate
 
 
 class CertificateViewSet(viewsets.ReadOnlyModelViewSet):
@@ -31,3 +35,30 @@ class CertificateViewSet(viewsets.ReadOnlyModelViewSet):
                 },
             }
         )
+
+    @action(detail=False, methods=["post"], url_path="generate/hackathon/(?P<hackathon_id>[^/.]+)")
+    def generate_for_hackathon(self, request, hackathon_id=None):
+        if request.user.role not in ("organizer", "admin"):
+            return Response({"detail": "only organizers can generate certificates"}, status=status.HTTP_403_FORBIDDEN)
+
+        participant_ids = list(
+            HackathonParticipant.objects.filter(hackathon_id=hackathon_id, status=HackathonParticipant.STATUS_REGISTERED).values_list(
+                "user_id", flat=True
+            )
+        )
+        generated = []
+        for user_id in participant_ids:
+            cert = issue_certificate(
+                user_id=user_id,
+                hackathon_id=hackathon_id,
+                metadata={"generated_by": request.user.id},
+            )
+            create_notification(
+                user_id=user_id,
+                event_type="certificate:ready",
+                title="Certificate ready",
+                body="Your certificate is now available for verification and download.",
+                metadata={"certificate_id": cert.id, "verification_id": str(cert.verification_id)},
+            )
+            generated.append(cert.id)
+        return Response({"generated_count": len(generated), "certificate_ids": generated})
